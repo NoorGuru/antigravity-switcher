@@ -464,9 +464,56 @@ print(f'\n🎉 Successfully imported {count} accounts into OS keyring! Slot {fir
 }
 
 # -----------------------------------------------------------------------------
+# Terminal Pinning (Parallel Multi-Shell Support)
+# -----------------------------------------------------------------------------
+slot-agy() {
+  local slot="$1"
+  if [[ -z "$slot" ]]; then
+    if [[ -n "$AGY_SLOT" ]]; then
+      local semail=$(_agy_cached_email "$AGY_SLOT")
+      echo "🔒 Current terminal is pinned to Slot $AGY_SLOT (${semail:-Account $AGY_SLOT})"
+    else
+      echo "🔓 Current terminal is unpinned (using global active slot)"
+    fi
+    return 0
+  fi
+
+  if [[ "$slot" == "0" || "$slot" == "unpin" || "$slot" == "unset" ]]; then
+    unset AGY_SLOT
+    echo "🔓 Terminal unpinned. Using global active slot."
+    return 0
+  fi
+
+  if [[ ! "$slot" =~ ^[1-5]$ ]]; then
+    echo "❌ Please provide a slot from 1 to 5, or 'unpin' to remove pin."
+    return 1
+  fi
+
+  export AGY_SLOT="$slot"
+  local semail=$(_agy_cached_email "$slot")
+  echo "🔒 Terminal pinned to Slot $slot (${semail:-Account $slot})"
+  echo "   All 'agy' and 'yagy' commands in this tab will automatically use Slot $slot."
+}
+unpin-agy() { slot-agy unpin; }
+pin-agy() { slot-agy "$@"; }
+
+# -----------------------------------------------------------------------------
 # Quick Launch Wrappers & Aliases
 # -----------------------------------------------------------------------------
-alias yagy="agy --dangerously-skip-permissions"
+agy() {
+  if [[ -n "$AGY_SLOT" ]]; then
+    use-agy "$AGY_SLOT" >/dev/null 2>&1
+  fi
+  command agy "$@"
+}
+
+yagy() {
+  if [[ -n "$AGY_SLOT" ]]; then
+    use-agy "$AGY_SLOT" >/dev/null 2>&1
+  fi
+  command agy --dangerously-skip-permissions "$@"
+}
+
 nagy() { next-agy && yagy "$@"; }
 pagy() { prev-agy && yagy "$@"; }
 nagyn() { next-agy && agy "$@"; }
@@ -474,8 +521,8 @@ pagyn() { prev-agy && agy "$@"; }
 
 # Direct slot commands: agy1..agy5 & yagy1..yagy5
 for s in 1 2 3 4 5; do
-  eval "agy$s()  { use-agy $s && agy \"\$@\"; }"
-  eval "yagy$s() { use-agy $s && yagy \"\$@\"; }"
+  eval "agy$s()  { use-agy $s && command agy \"\$@\"; }"
+  eval "yagy$s() { use-agy $s && command agy --dangerously-skip-permissions \"\$@\"; }"
 done
 
 alias tagy='nagy'

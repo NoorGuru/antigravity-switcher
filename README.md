@@ -101,8 +101,50 @@ Slots:
 | `tagy` | Alias for `nagy` |
 | `agy1` .. `agy5` | Switches to slot 1–5 and launches standard `agy` |
 | `yagy1` .. `yagy5` | Switches to slot 1–5 and launches `yagy` |
+| `slot-agy <1-5>` | Pins the current terminal session to a specific slot |
+| `unpin-agy` | Unpins current terminal (reverts to global active account) |
 | `export-agy [file]` | Exports all saved slots into an encrypted/JSON backup file (chmod 600) |
 | `import-agy <file>` | Imports backup file directly into the OS keyring on any machine |
+
+---
+
+## 👥 Running Multiple Accounts in Parallel (Multi-Terminal)
+
+Want to run two different Google accounts simultaneously in split terminals or separate tabs without logging in and out?
+
+`agy` loads your account's OAuth token into **process memory** upon startup. Once launched, each terminal session stays authenticated to its own account independently!
+
+### Method 1: Direct Slot Launchers (Quickest)
+Open two terminal tabs:
+* **Terminal 1:** Run `yagy1` *(Starts agy using Account 1)*
+* **Terminal 2:** Run `yagy2` *(Starts agy using Account 2)*
+
+Both sessions will run simultaneously on their respective accounts and quotas without interrupting each other!
+
+### Method 2: Shell Pinning (`slot-agy`)
+If you want an entire terminal tab dedicated to a project or account:
+* **Terminal 1:**
+  ```bash
+  slot-agy 1    # Pins this tab to Account 1
+  ```
+  Now every `agy`, `yagy`, or `agy -c` command in this tab will automatically execute under **Account 1**.
+* **Terminal 2:**
+  ```bash
+  slot-agy 2    # Pins this tab to Account 2
+  ```
+  Any command in this tab will automatically execute under **Account 2**.
+
+To check pin status or unpin:
+```bash
+slot-agy       # Check which slot this tab is pinned to
+unpin-agy      # Revert to global active slot
+```
+
+---
+
+### 🐧 Why is this even better on Ubuntu Server?
+* **On macOS:** macOS has a single, system-wide Apple Keychain per user. While both terminals work in parallel in memory, the Keychain on disk reflects whichever slot was activated last.
+* **On Ubuntu Linux:** Keyrings are managed via D-Bus session buses (`DBUS_SESSION_BUS_ADDRESS`). This means each terminal can have its own **physically isolated keyring daemon**—neither terminal can ever touch or overwrite the other on disk!
 
 ---
 
