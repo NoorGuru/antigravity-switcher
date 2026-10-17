@@ -34,7 +34,7 @@ fi
 
 chmod +x "$TARGET_SCRIPT"
 
-# 3. Linux-specific checks (Secret Service & D-Bus)
+# 3. Linux-specific setup (Secret Service & D-Bus)
 if [[ "$OSTYPE" != "darwin"* ]]; then
   MISSING_PKGS=()
   command -v secret-tool &>/dev/null || MISSING_PKGS+=("libsecret-tools")
@@ -56,6 +56,16 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
       echo "   sudo pacman -S --noconfirm libsecret gnome-keyring dbus python"
     fi
     echo ""
+  else
+    # Auto-initialize headless keyring if dependencies exist
+    mkdir -p "$HOME/.local/share/keyrings"
+    if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-launch &>/dev/null; then
+      eval $(dbus-launch --sh-syntax 2>/dev/null)
+    fi
+    if command -v gnome-keyring-daemon &>/dev/null; then
+      eval $(gnome-keyring-daemon --start --components=secrets 2>/dev/null)
+      printf "\n" | gnome-keyring-daemon --replace --unlock 2>/dev/null || true
+    fi
   fi
 fi
 
@@ -70,9 +80,12 @@ inject_shell_rc() {
 
 # Antigravity CLI Multi-Account Switcher
 if [[ "$OSTYPE" != "darwin"* ]]; then
-  # Headless D-Bus & Keyring setup for Linux/SSH
-  [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && eval $(dbus-launch --sh-syntax 2>/dev/null)
-  [ -z "$GNOME_KEYRING_CONTROL" ] && eval $(echo -n "" | gnome-keyring-daemon --unlock --components=secrets 2>/dev/null)
+  # Headless D-Bus & Secret Service initialization for Linux/SSH
+  [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-launch &>/dev/null && eval $(dbus-launch --sh-syntax 2>/dev/null)
+  if command -v gnome-keyring-daemon &>/dev/null; then
+    eval $(gnome-keyring-daemon --start --components=secrets 2>/dev/null)
+    printf "\n" | gnome-keyring-daemon --replace --unlock 2>/dev/null || true
+  fi
 fi
 [[ -f ~/.config/antigravity/switcher.sh ]] && source ~/.config/antigravity/switcher.sh
 EOF

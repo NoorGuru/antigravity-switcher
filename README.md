@@ -117,20 +117,22 @@ export-agy ~/agy_slots_backup.json
 
 ### 2. Copy to your Server
 ```bash
-scp ~/agy_slots_backup.json user@your-server-ip:~/.config/antigravity/
+scp ~/agy_slots_backup.json user@your-server-ip:~/
 ```
 
 ### 3. On your Ubuntu Server (Install & Import)
-Install the switcher on the server:
+Install dependencies and the switcher on the server:
 ```bash
+# Install keyring packages
+sudo apt update && sudo apt install -y libsecret-tools gnome-keyring dbus-x11 python3 fzf
+
+# Install switcher
 curl -fsSL https://raw.githubusercontent.com/NoorGuru/antigravity-switcher/main/install.sh | bash
 source ~/.config/antigravity/switcher.sh
-```
 
-Import your accounts:
-```bash
-import-agy ~/.config/antigravity/agy_slots_backup.json
-rm ~/.config/antigravity/agy_slots_backup.json
+# Import accounts directly
+import-agy ~/agy_slots_backup.json
+rm ~/agy_slots_backup.json
 ```
 
 Run `status-agy` on the server — all your accounts are ready to go!
@@ -141,17 +143,15 @@ Run `status-agy` on the server — all your accounts are ready to go!
 
 On headless servers without an active desktop environment, D-Bus and `gnome-keyring-daemon` are required by Linux to store and retrieve credentials securely over SSH.
 
-The installer automatically configures this in your `~/.bashrc` / `~/.zshrc`:
+The installer automatically initializes this during installation and configures it in your `~/.bashrc` / `~/.zshrc`:
 ```bash
 if [[ "$OSTYPE" != "darwin"* ]]; then
-  [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && eval $(dbus-launch --sh-syntax 2>/dev/null)
-  [ -z "$GNOME_KEYRING_CONTROL" ] && eval $(echo -n "" | gnome-keyring-daemon --unlock --components=secrets 2>/dev/null)
+  [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-launch &>/dev/null && eval $(dbus-launch --sh-syntax 2>/dev/null)
+  if command -v gnome-keyring-daemon &>/dev/null; then
+    eval $(gnome-keyring-daemon --start --components=secrets 2>/dev/null)
+    printf "\n" | gnome-keyring-daemon --replace --unlock 2>/dev/null || true
+  fi
 fi
-```
-
-### Required Linux Packages
-```bash
-sudo apt update && sudo apt install -y libsecret-tools gnome-keyring dbus-x11 python3 fzf
 ```
 
 ---

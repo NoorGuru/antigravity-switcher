@@ -376,6 +376,14 @@ import-agy() {
     return 1
   fi
 
+  if ! _agy_is_macos; then
+    if ! command -v secret-tool &>/dev/null; then
+      echo "❌ 'secret-tool' is not installed. Please run:"
+      echo "   sudo apt update && sudo apt install -y libsecret-tools gnome-keyring dbus-x11"
+      return 1
+    fi
+  fi
+
   python3 -c "
 import sys, json, subprocess, os, base64
 
@@ -395,8 +403,12 @@ def get_email(token):
     return ''
 
 is_mac = sys.platform == 'darwin'
-with open(sys.argv[1], 'r') as f:
-    data = json.load(f)
+try:
+    with open(sys.argv[1], 'r') as f:
+        data = json.load(f)
+except Exception as e:
+    print(f'❌ Failed to read backup JSON: {e}')
+    sys.exit(1)
 
 slots = data.get('slots', data)
 count = 0
@@ -409,10 +421,20 @@ for slot_str, token in sorted(slots.items(), key=lambda x: int(x[0]) if x[0].isd
         continue
     slot = int(slot_str)
     service = f'agy-slot-{slot}'
-    if is_mac:
-        subprocess.run(['security', 'add-generic-password', '-U', '-s', service, '-a', 'antigravity', '-w', token], check=True, stdout=subprocess.DEVNULL)
-    else:
-        subprocess.run(['secret-tool', 'store', f'--label={service}', 'service', service, 'username', 'antigravity'], input=token.encode(), check=True, stdout=subprocess.DEVNULL)
+    try:
+        if is_mac:
+            subprocess.run(['security', 'add-generic-password', '-U', '-s', service, '-a', 'antigravity', '-w', token], check=True, stdout=subprocess.DEVNULL)
+        else:
+            subprocess.run(['secret-tool', 'store', f'--label={service}', 'service', service, 'username', 'antigravity'], input=token.encode(), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        err = e.stderr.decode() if e.stderr else str(e)
+        print(f'❌ Failed to store Slot {slot} in keyring: {err}')
+        if 'login' in err or 'Object does not exist' in err:
+            print('💡 Fix: Run the following once on your server to unlock the keyring:')
+            print('   eval $(gnome-keyring-daemon --start --components=secrets)')
+            print('   printf \"\\n\" | gnome-keyring-daemon --replace --unlock')
+        sys.exit(1)
+
     email = get_email(token)
     cache_slots[str(slot)] = email
     if first_slot is None:
