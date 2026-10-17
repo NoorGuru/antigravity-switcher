@@ -142,7 +142,7 @@ use-agy() {
       current_token=$(_agy_keyring_get "gemini")
       current_email=$(_agy_get_email "$current_token")
 
-      local options=()
+      local menu_options=()
       local semail stok i
       for i in 1 2 3 4 5; do
         semail=$(_agy_cached_email "$i")
@@ -153,17 +153,17 @@ use-agy() {
 
         if [[ -n "$semail" ]]; then
           if [[ "$semail" == "$current_email" ]]; then
-            options+=("[$i] $semail  ● (active)")
+            menu_options+=("[$i] $semail  ● (active)")
           else
-            options+=("[$i] $semail")
+            menu_options+=("[$i] $semail")
           fi
         else
-          options+=("[$i] (empty - run 'save-agy $i')")
+          menu_options+=("[$i] (empty - run 'save-agy $i')")
         fi
       done
 
       local choice
-      choice=$(printf "%s\n" "${options[@]}" | fzf --height=9 --reverse --prompt="Select Account > " --header="Antigravity CLI Account Switcher")
+      choice=$(printf "%s\n" "${menu_options[@]}" | fzf --height=9 --reverse --prompt="Select Account > " --header="Antigravity CLI Account Switcher")
       [[ -z "$choice" ]] && return 0
 
       local target_slot
@@ -256,7 +256,7 @@ _agy_cycle() {
     echo "❌ No saved slots found. Save a session first using 'save-agy <1-5>'."
     return 1
   elif [[ "$n" -eq 1 ]]; then
-    echo "ℹ️ Only Slot ${populated_slots[0]} is configured. Run 'save-agy <slot>' to add more accounts."
+    echo "ℹ️ Only Slot ${populated_slots[*]} is configured. Run 'save-agy <slot>' to add more accounts."
     return 0
   fi
 
@@ -266,7 +266,7 @@ import sys
 slots = [int(x) for x in sys.argv[1].split(',') if x]
 active = int(sys.argv[2]) if sys.argv[2].isdigit() else 0
 dir_step = int(sys.argv[3])
-idx = slots.index(active) if active in slots else 0
+idx = slots.index(active) if active in slots else (-1 if dir_step > 0 else 0)
 next_idx = (idx + dir_step) % len(slots)
 print(slots[next_idx])
 " "$(IFS=,; echo "${populated_slots[*]}")" "$active_slot" "$dir")
@@ -294,14 +294,18 @@ status-agy() {
   cur_email=$(_agy_get_email "$current_token")
 
   local active_slot=0
+  local slot_emails=()
   local stok semail s
   for s in 1 2 3 4 5; do
     stok=$(_agy_keyring_get "agy-slot-$s")
     if [[ -n "$stok" ]]; then
       semail=$(_agy_get_email "$stok")
+      slot_emails[$s]="${semail:-Saved session}"
       if [[ (-n "$cur_email" && "$cur_email" == "$semail") || ("$current_token" == "$stok") ]]; then
         active_slot="$s"
       fi
+    else
+      slot_emails[$s]=""
     fi
   done
 
@@ -320,13 +324,12 @@ status-agy() {
   echo "-------------------------------------------"
   echo "Slots:"
   for s in 1 2 3 4 5; do
-    stok=$(_agy_keyring_get "agy-slot-$s")
-    if [[ -n "$stok" ]]; then
-      semail=$(_agy_get_email "$stok")
+    semail="${slot_emails[$s]}"
+    if [[ -n "$semail" ]]; then
       if [[ "$s" -eq "$active_slot" ]]; then
-        printf "  [%d] %-30s (active)\n" "$s" "${semail:-Saved session}"
+        printf "  [%d] %-30s (active)\n" "$s" "$semail"
       else
-        printf "  [%d] %s\n" "$s" "${semail:-Saved session}"
+        printf "  [%d] %s\n" "$s" "$semail"
       fi
     else
       printf "  [%d] (empty - run 'save-agy %d')\n" "$s" "$s"
@@ -360,12 +363,12 @@ for i in range(1, 6):
     except Exception:
         pass
 
-out = sys.argv[1]
+out = os.path.abspath(os.path.expanduser(sys.argv[1]))
 with open(out, 'w') as f:
     json.dump(data, f, indent=2)
 os.chmod(out, 0o600)
 print(f'✅ Exported {len(data[\"slots\"])} account slots to {out} (chmod 600)')
-print('💡 Transfer to your server via: scp ' + out + ' user@server:~/.config/antigravity/')
+print('💡 Transfer to your server via: scp ' + out + ' user@server:~/')
 " "$outfile"
 }
 

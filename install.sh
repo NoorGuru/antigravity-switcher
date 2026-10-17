@@ -17,7 +17,7 @@ mkdir -p "$TARGET_DIR"
 
 # 2. Install switcher.sh (from local directory if cloned, or curl from GitHub)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
-if [[ -f "$SCRIPT_DIR/switcher.sh" ]]; then
+if [[ -n "${BASH_SOURCE[0]}" && -f "$SCRIPT_DIR/switcher.sh" ]]; then
   echo "📦 Copying switcher.sh from local repository..."
   cp "$SCRIPT_DIR/switcher.sh" "$TARGET_SCRIPT"
 else
@@ -64,7 +64,7 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
     fi
     if command -v gnome-keyring-daemon &>/dev/null; then
       eval $(gnome-keyring-daemon --start --components=secrets 2>/dev/null)
-      printf "\n" | gnome-keyring-daemon --replace --unlock 2>/dev/null || true
+      printf "\n" | gnome-keyring-daemon --unlock 2>/dev/null || true
     fi
   fi
 fi
@@ -82,9 +82,9 @@ inject_shell_rc() {
 if [[ "$OSTYPE" != "darwin"* ]]; then
   # Headless D-Bus & Secret Service initialization for Linux/SSH
   [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-launch &>/dev/null && eval $(dbus-launch --sh-syntax 2>/dev/null)
-  if command -v gnome-keyring-daemon &>/dev/null; then
+  if command -v gnome-keyring-daemon &>/dev/null && [ -z "$GNOME_KEYRING_CONTROL" ]; then
     eval $(gnome-keyring-daemon --start --components=secrets 2>/dev/null)
-    printf "\n" | gnome-keyring-daemon --replace --unlock 2>/dev/null || true
+    printf "\n" | gnome-keyring-daemon --unlock 2>/dev/null || true
   fi
 fi
 [[ -f ~/.config/antigravity/switcher.sh ]] && source ~/.config/antigravity/switcher.sh
