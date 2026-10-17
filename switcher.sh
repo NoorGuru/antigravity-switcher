@@ -2,6 +2,9 @@
 # Location: ~/.config/antigravity/switcher.sh
 # Supports: Linux (secret-tool) & macOS (security) | Bash & Zsh
 
+# Clear any conflicting aliases before defining functions
+unalias agy yagy 2>/dev/null || true
+
 # -----------------------------------------------------------------------------
 # OS Keyring Abstraction
 # -----------------------------------------------------------------------------
