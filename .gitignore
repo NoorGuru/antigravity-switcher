@@ -1,0 +1,6 @@
+*.bak*
+*.tmp
+*.json
+!current_account.example.json
+__pycache__/
+.DS_Store
