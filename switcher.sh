@@ -223,6 +223,7 @@ use-agy() {
 
   local active_email
   active_email=$(_agy_get_email "$target_token")
+  export AGY_SLOT="$target_slot"
   _agy_update_cache "$target_slot" "$active_email"
 
   if [[ -n "$active_email" ]]; then
